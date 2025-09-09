@@ -21,109 +21,123 @@ sqlite3.register_adapter(date, adapt_date)
 def export_excel():
     try:
         workbook = openpyxl.Workbook()
-        
         query="SELECT * FROM staff_list"
         cursor.execute(query)
         staffs=cursor.fetchall()
-        for staff in staffs:
-            staff_name, staff_department, staff_id = staff[1], staff[2], staff[3]
-            sheet_name=f"{staff_name}"
-            sheet=workbook.create_sheet(title=sheet_name)
+        row_num=2
+        for staff in staffs:           
+            sheet=workbook.active
+            sheet["A1"]="Staff Name"
+            sheet.column_dimensions["A"].width=40
+            staff_name=staff[1]
+            sheet.append([staff_name])
+           
             cal = calendar.Calendar()
-            
             currect_month=datetime.today().month
             currect_year=date.today().year
             month_dates = cal.monthdatescalendar(currect_year, currect_month)
-            
-            sheet["A1"]="DAY"
-            sheet["B1"]="Time in"
-            sheet["C1"]="Time out"
-            sheet["D1"]="Break time"
-            sheet["E1"]="Total working hours"
-            sheet["F1"]="Total time off"
-            
-            sheet.column_dimensions["A"].width=5
-            sheet.column_dimensions["B"].width=25
-            sheet.column_dimensions["C"].width=25
-            sheet.column_dimensions["D"].width=25
-            sheet.column_dimensions["E"].width=10
-            sheet.column_dimensions["F"].width=10
-           
-            
+            col_num=2
+            staff_timein=[]
+            total_lateness=0
             for week in month_dates:
+                
                 for day in week:
-                    if day.month==currect_month:
+                   
+                    if day.month==currect_month  and day.day<=date.today().day:
                         if day.weekday() in [5, 6]: 
                             pass
                         else:
-                            
                             # print(f"{day.day:2}")
+                            
                             date_today=day
                             qry=f"SELECT GROUP_CONCAT(time_checkin) as timecheckin FROM staff_attendance where DATE(date_checkin)=DATE('{date_today}') AND staff_id='{staff[3]}' AND (time_section='morning' or time_section='afternoon' or time_section='other')  group by date_checkin"
                             cursor.execute(qry)
                             datecheckin=cursor.fetchone()
                             
-                            
                             if datecheckin is not None:
-                                qry_break=f"SELECT GROUP_CONCAT(time_checkin) as timecheckin FROM staff_attendance where DATE(date_checkin)=DATE('{date_today}') AND staff_id='{staff[3]}' AND time_section='breaktime'  group by date_checkin"
-                                cursor.execute(qry_break)
-                                breaktimecheck=cursor.fetchone()
-                                if breaktimecheck is not None:
-                                    breaktimescan=breaktimecheck[0]
-                                    breaktimes=breaktimecheck[0].split(",")
-                                    time_breaks = [datetime.strptime(breaktime, "%H:%M:%S") for breaktime in breaktimes]
-                                    breaktimelen=len(time_breaks)
-                                    if breaktimelen==2:
-                                        breaktime=time_breaks[-1]-time_breaks[0]
-                                        breaktime_duration=math.floor(breaktime.total_seconds() / 60)
-                                else:
-                                    breaktimescan=""
-                                    breaktime_duration=60
+                                # qry_break=f"SELECT GROUP_CONCAT(time_checkin) as timecheckin FROM staff_attendance where DATE(date_checkin)=DATE('{date_today}') AND staff_id='{staff[3]}' AND time_section='breaktime'  group by date_checkin"
+                                # cursor.execute(qry_break)
+                                # breaktimecheck=cursor.fetchone()
+                                # if breaktimecheck is not None:
+                                #     breaktimescan=breaktimecheck[0]
+                                #     breaktimes=breaktimecheck[0].split(",")
+                                #     time_breaks = [datetime.strptime(breaktime, "%H:%M:%S") for breaktime in breaktimes]
+                                #     breaktimelen=len(time_breaks)
+                                #     if breaktimelen==2:
+                                #         breaktime=time_breaks[-1]-time_breaks[0]
+                                #         breaktime_duration=math.floor(breaktime.total_seconds() / 60)
+                                # else:
+                                #     breaktimescan=""
+                                #     breaktime_duration=60
                                 
                                 checktime=datecheckin[0]
                                 times=checktime.split(",")
-                                time_objects = [datetime.strptime(time, "%H:%M:%S") for time in times]
+                                time_objects = [datetime.strptime(time, "%H:%M:%S") for time in times]                        
                                 count_timeoff=len(time_objects)
                                 timeatten=0
                                 timeins = [times[i] for i in range(len(times)) if i % 2 == 0]
                                 timeouts = [times[i] for i in range(len(times)) if i % 2 != 0]
-                                
-                                
-                                
-                                for i in range(len(time_objects)//2):
+        
+                                timelateness=0
+                                if count_timeoff>1:
                                     
-                                    start_timeoff = datetime.strptime("08:00:00","%H:%M:%S") if time_objects[i * 2]<=datetime.strptime("08:00:00","%H:%M:%S") else time_objects[i * 2]
+                                    for i in range(len(time_objects)//2):
+                                        start_timeoff = datetime.strptime("08:00:00","%H:%M:%S") if time_objects[i * 2]<=datetime.strptime("08:00:00","%H:%M:%S") else time_objects[i * 2]
+                                        
+                                        end_timeoff = datetime.strptime("17:00:00","%H:%M:%S") if time_objects[i * 2 + 1]>=datetime.strptime("17:00:00","%H:%M:%S") else time_objects[i * 2 + 1]
+                                        lateness_duration= start_timeoff - datetime.strptime("08:00:00","%H:%M:%S") 
+                                        timeoff_duration = end_timeoff - start_timeoff
+                                        
+                                        timelateness+=math.floor(lateness_duration.total_seconds() / 60)
+                                        timeatten += math.floor(timeoff_duration.total_seconds() / 60)
+                                else:
+                                    start_timeoff = datetime.strptime("08:00:00","%H:%M:%S") if time_objects[0]<=datetime.strptime("08:00:00","%H:%M:%S") else time_objects[0]
                                     
-                                    end_timeoff = datetime.strptime("17:00:00","%H:%M:%S") if time_objects[i * 2 + 1]>=datetime.strptime("17:00:00","%H:%M:%S") else time_objects[i * 2 + 1]
-                                    
+                                    end_timeoff = datetime.strptime("17:00:00","%H:%M:%S") if time_objects[-1]>=datetime.strptime("17:00:00","%H:%M:%S") else time_objects[-1]
+                                    lateness_duration= start_timeoff - datetime.strptime("08:00:00","%H:%M:%S") 
                                     timeoff_duration = end_timeoff - start_timeoff
+                                    
+                                    timelateness+=math.floor(lateness_duration.total_seconds() / 60)
                                     timeatten += math.floor(timeoff_duration.total_seconds() / 60)
                                 
-                                
+                                total_lateness+=timelateness
                                 
                                 # morning_time=datetime.strptime("08:00:00","%H:%M:%S") if time_objects[0]<=datetime.strptime("08:00:00","%H:%M:%S") else time_objects[0]
                                 # afternoon_time=datetime.strptime("17:00:00","%H:%M:%S") if time_objects[-1]>=datetime.strptime("17:00:00","%H:%M:%S") else time_objects[-1]
                                 # time_difference = afternoon_time - morning_time
                                 # working_time = math.floor(time_difference.total_seconds() / 60)
                                 
+                                # if time_objects[-1]<datetime.strptime("12:00:00","%H:%M:%S"):
+                                #     breaktime_duration-=60
                                 
-                                if time_objects[-1]<datetime.strptime("12:00:00","%H:%M:%S"):
-                                    breaktime_duration-=60
                                 
-                                totaltimeatten=timeatten-breaktime_duration if timeatten-breaktime_duration >0 else 0
-                                totaltimeoff=480-totaltimeatten
+                                # totaltimeatten=timeatten-breaktime_duration if timeatten-breaktime_duration >0 else 0
+                               
+                                totaltimeoff=540-timeatten
                                 
-                                timein=", ".join(timeins)
-                                timeout=", ".join(timeouts)
-                                sheet.append([day.day,timein,timeout,breaktimescan,totaltimeatten,totaltimeoff])
+                                # sheet.append([day.day,timein,timeout,breaktimescan,totaltimeatten,totaltimeoff])
+                                day_month = f"{day.day}-{day.strftime('%b')}"
+                                
+                                sheet.cell(row=1, column=col_num, value=day_month)
+                                # Convert timein (comma-separated string) to formatted time strings
+                                
+                                timein_formatted = ", ".join([datetime.strptime(t, "%H:%M:%S").strftime("%H:%M") for t in timeins if t])
+                                timeout_formatted = ", ".join([datetime.strptime(t, "%H:%M:%S").strftime("%H:%M") for t in timeouts if t])
+                                sheet.cell(row=row_num, column=col_num, value=f"{timein_formatted}")
+                                col_num += 1
+                                
                                 
                             else:
-                                sheet.append([day.day])
-                            
-                            
-                      
-                                  
-        
+                                day_month = f"{day.day}-{day.strftime('%b')}"
+                                sheet.cell(row=1, column=col_num, value=day_month)
+                                sheet.cell(row=row_num, column=col_num, value=f"U")
+                                col_num += 1
+
+            sheet.cell(row=1, column=col_num, value="Total lateness (mins)")                    
+            sheet.cell(row=row_num, column=col_num, value=f"{total_lateness}")
+            col_num += 1
+            row_num+=1
+
         current_date = datetime.now()
         current_month_name = current_date.strftime('%B')  
         workbook.save(f"staff_attendance{currect_year}({current_month_name}).xlsx")
@@ -177,8 +191,7 @@ def export_daily():
         
         
     except Exception as e:
-        print(f"Error occur is {e}")
-
+        print(f"Error occur is {e}")      
 
 def remind_whatapp(message,status=0):
     ACCESS_TOKEN = 'b4c1ff649fbc1173a2d03776a97860e22e77d87f4cf4235aba92b6b18ee54aa5'
@@ -203,10 +216,7 @@ def remind_whatapp(message,status=0):
             print('Message sent successfully')
         else:
             print('Failed to send message:', response.json())
-    
-    
+        
         
 export_excel()
 export_daily()
-    
-    
