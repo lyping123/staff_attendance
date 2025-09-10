@@ -1,12 +1,13 @@
-import openpyxl
-import sqlite3
-import calendar
-import math
+import openpyxl , sqlite3,calendar,math
 from datetime import datetime, date
+from excel_style import border_alignCenter,BoldFont
 
 mydb = sqlite3.connect('attendance.db')
 
 cursor=mydb.cursor()
+border, alignment_center= border_alignCenter()
+FontBold=BoldFont()
+
 
 def fetch_staffs(cursor):
     cursor.execute("SELECT * FROM staff_list")
@@ -50,12 +51,21 @@ def calculate_lateness(times):
 
 def write_header(sheet):
     sheet.column_dimensions["A"].width = 35
-    sheet["A1"] = "Staff Name"
+    sheet.column_dimensions["N"].width = 15
+    current_year = date.today().year
+    sheet["A2"] = "Staff Name"
+    sheet.merge_cells(start_row=1, start_column=2, end_row=1, end_column=13)
+    sheet.cell(row=1, column=2, value=current_year).alignment =alignment_center
+    sheet.cell(row=1, column=2).font = FontBold
+    
     for month in range(1, 13):
-        sheet.cell(row=1, column=month+1, value=calendar.month_abbr[month])
+        sheet.cell(row=2, column=month+1, value=calendar.month_abbr[month])
+        sheet.cell(row=2, column=month+1).border=border
+        sheet.cell(row=2, column=month+1).alignment = alignment_center
         max_col=month+1
     
-    sheet.cell(row=1, column=max_col+1, value="Total lateness")
+    sheet.cell(row=2, column=max_col+1, value="Total lateness").border=border
+    sheet.cell(row=2, column=max_col+1).alignment = alignment_center
 
 def export_yearly(cursor):
     try:
@@ -67,10 +77,12 @@ def export_yearly(cursor):
         currect_year = date.today().year
         cal = calendar.Calendar()
 
-        for row, staff in enumerate(staffs, start=2):
+        for row, staff in enumerate(staffs, start=3):
             staff_id = staff[3]
             staff_name = staff[1]
-            sheet.cell(row=row, column=1, value=staff_name)
+            sheet.cell(row=row, column=1, value=staff_name).border=border
+            
+            
 
             for month in range(1, 13):
                 timelateness = 0
@@ -84,9 +96,12 @@ def export_yearly(cursor):
                             late, _ = calculate_lateness(times)
                             timelateness += late
 
-                sheet.cell(row=row, column=month+1, value=timelateness)
+                sheet.cell(row=row, column=month+1, value=timelateness).border=border
+                sheet.cell(row=row, column=month+1).alignment = alignment_center
             total_lateness = sum(sheet.cell(row=row, column=col).value or 0 for col in range(2, 14))
-            sheet.cell(row=row, column=14, value=total_lateness)
+            
+            sheet.cell(row=row, column=14, value=total_lateness).border=border
+            sheet.cell(row=row, column=14).alignment = alignment_center
 
         workbook.save(f"Staff attendance yearly summary({currect_year}).xlsx")
         print("Export completed successfully")

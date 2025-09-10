@@ -1,13 +1,13 @@
-import sqlite3
-import tkinter as tk
-import openpyxl
-from openpyxl.styles import Border, Side
-from openpyxl.styles import PatternFill
-from tkinter import ttk,messagebox,filedialog
+import sqlite3, calendar, math ,openpyxl
 from datetime import datetime,timedelta,date
-import calendar
-import math
-import requests
+from excel_style import border_alignCenter,BoldFont,FillColor
+
+
+boder,alignment_center=border_alignCenter()
+bold=BoldFont()
+fill_green=FillColor("00FF00")
+fill_red=FillColor("FF0000")
+
 
 mydb = sqlite3.connect('attendance.db')
 
@@ -25,12 +25,14 @@ def export_excel():
         cursor.execute(query)
         staffs=cursor.fetchall()
         row_num=2
-        for staff in staffs:           
+        for num_row,staff in enumerate(staffs):           
             sheet=workbook.active
             sheet["A1"]="Staff Name"
             sheet.column_dimensions["A"].width=40
             staff_name=staff[1]
             sheet.append([staff_name])
+            sheet.cell(row=num_row+2, column=1).border=boder
+            
            
             cal = calendar.Calendar()
             currect_month=datetime.today().month
@@ -101,7 +103,6 @@ def export_excel():
                                     timeatten += math.floor(timeoff_duration.total_seconds() / 60)
                                 
                                 total_lateness+=timelateness
-                                
                                 # morning_time=datetime.strptime("08:00:00","%H:%M:%S") if time_objects[0]<=datetime.strptime("08:00:00","%H:%M:%S") else time_objects[0]
                                 # afternoon_time=datetime.strptime("17:00:00","%H:%M:%S") if time_objects[-1]>=datetime.strptime("17:00:00","%H:%M:%S") else time_objects[-1]
                                 # time_difference = afternoon_time - morning_time
@@ -118,23 +119,32 @@ def export_excel():
                                 # sheet.append([day.day,timein,timeout,breaktimescan,totaltimeatten,totaltimeoff])
                                 day_month = f"{day.day}-{day.strftime('%b')}"
                                 
-                                sheet.cell(row=1, column=col_num, value=day_month)
+                                sheet.cell(row=1, column=col_num, value=day_month).border=boder
+                                sheet.cell(row=1, column=col_num, value=day_month).alignment =alignment_center
                                 # Convert timein (comma-separated string) to formatted time strings
                                 
                                 timein_formatted = ", ".join([datetime.strptime(t, "%H:%M:%S").strftime("%H:%M") for t in timeins if t])
                                 timeout_formatted = ", ".join([datetime.strptime(t, "%H:%M:%S").strftime("%H:%M") for t in timeouts if t])
                                 sheet.cell(row=row_num, column=col_num, value=f"{timein_formatted}")
+                                sheet.cell(row=row_num, column=col_num).border=boder
+                                sheet.cell(row=row_num, column=col_num).alignment =alignment_center
                                 col_num += 1
                                 
                                 
                             else:
                                 day_month = f"{day.day}-{day.strftime('%b')}"
-                                sheet.cell(row=1, column=col_num, value=day_month)
-                                sheet.cell(row=row_num, column=col_num, value=f"U")
+                                sheet.cell(row=1, column=col_num, value=day_month).border=boder
+                                sheet.cell(row=1, column=col_num, value=day_month).alignment =alignment_center
+                                
+                                sheet.cell(row=row_num, column=col_num, value=f"").border=boder
+                                sheet.cell(row=row_num, column=col_num).alignment =alignment_center
                                 col_num += 1
 
-            sheet.cell(row=1, column=col_num, value="Total lateness (mins)")                    
-            sheet.cell(row=row_num, column=col_num, value=f"{total_lateness}")
+            sheet.cell(row=1, column=col_num, value="Total lateness (mins)").border=boder
+            sheet.cell(row=1, column=col_num).alignment =alignment_center                    
+            sheet.cell(row=row_num, column=col_num, value=f"{total_lateness}").border=boder
+            sheet.cell(row=row_num, column=col_num).alignment =alignment_center
+            
             col_num += 1
             row_num+=1
 
@@ -160,8 +170,6 @@ def export_daily():
         sheet.column_dimensions["B"].width=40
         sheet.column_dimensions["C"].width=40
         current_date = datetime.now().date()
-        green_fill = PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")  # Green
-        red_fill = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
         send_status=0
         
         message="Today's Staff Attendance:\n"
@@ -180,11 +188,13 @@ def export_daily():
             
             cell = sheet[f"B{row_num}"]
             if attendance != "no attend today":
-                cell.fill = green_fill  # Green if attended
+                cell.fill = fill_green  # Green if attended
             else:
-                cell.fill = red_fill
+                cell.fill = fill_red
             row_num += 1
+        message+=f"to visit the attendance list, please visit this link: https://drive.google.com/drive/folders/1TvSvB0Kdda4mxJarqdVbBYNoY09NwRYx?usp=sharing\n"
         sendmessage=message
+        
         # remind_whatapp(sendmessage,send_status)
         
         workbook.save(f"today staff attendance.xlsx")
@@ -193,30 +203,6 @@ def export_daily():
     except Exception as e:
         print(f"Error occur is {e}")      
 
-def remind_whatapp(message,status=0):
-    ACCESS_TOKEN = 'b4c1ff649fbc1173a2d03776a97860e22e77d87f4cf4235aba92b6b18ee54aa5'
-    TO_PHONE_NUMBER = '60168813607'
-    
-    
-    url = f"https://onsend.io/api/v1/send"
-    headers = {
-        'Accept': 'application/json',
-        'Authorization': f'Bearer {ACCESS_TOKEN}',
-        'Content-Type': 'application/json',
-    }
-    TO_PHONE_NUMBER='60129253398'
-    
-    data={
-        'phone_number':TO_PHONE_NUMBER,
-        'message':message,
-    }
-    if status>0:
-        response = requests.post(url, headers=headers, json=data)
-        if response.status_code == 200:
-            print('Message sent successfully')
-        else:
-            print('Failed to send message:', response.json())
-        
         
 export_excel()
 export_daily()
