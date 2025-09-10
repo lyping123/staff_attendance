@@ -5,3 +5,4 @@
 *.xlsb
 /dist*
 /build*
+*.spec

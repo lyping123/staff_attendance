@@ -18,6 +18,7 @@ def load_staff_name(file_path):
         for row in sheet.iter_rows(values_only=True, min_row=2, min_col=1):
             staff_name=row
             rows.append(staff_name)
+       
         return rows, headers
             
     except Exception as e:
@@ -25,7 +26,9 @@ def load_staff_name(file_path):
         return None, None
 
 def sycn_attendance():
-    staff_list,headers=load_staff_name("staff_attendance2025(September).xlsx")
+    current_year=datetime.now().year
+    current_month=datetime.now().strftime('%B') 
+    staff_list,headers=load_staff_name(f"staff_attendance{current_year}({current_month}).xlsx")
     
     for staff in staff_list:
         for col_num,header in enumerate(headers[1:-1],start=2):
@@ -33,7 +36,7 @@ def sycn_attendance():
             time_checkin=staff[col_num-1]
             
             array_leave=["U","AL","MC","H"]
-            if time_checkin not in array_leave:
+            if time_checkin not in array_leave or time_checkin is not None:
                 time_format=f"{time_checkin}:00" if len(str(time_checkin))<=5 else f"{time_checkin}"
             else:
                 time_format=time_checkin
@@ -61,9 +64,6 @@ def sycn_attendance():
                     WHERE id = ?
                 """, (time_format, attendance_id))
                 mydb.commit()
-            
-            
-            
-        
+   
 file=load_staff_name("staff_attendance2025(September).xlsx")
 sycn_attendance()

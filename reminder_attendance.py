@@ -23,6 +23,8 @@ def export_daily_attendance():
         if row is None:
             message+=f"{staff[1]} : no attend today \n"
             send_status+=1
+    
+    message+="for more info, please visit this link:\n  https://drive.google.com/drive/folders/1TvSvB0Kdda4mxJarqdVbBYNoY09NwRYx?usp=sharing"
         
     return message,send_status
     

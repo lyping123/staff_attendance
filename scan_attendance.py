@@ -159,7 +159,6 @@ class clockApp:
         else:
             messagebox.showinfo("fail","Your user account is not been register yet")
         
-        export_excel()
         export_daily()
         self.countstaff()
         self.load_attendance()

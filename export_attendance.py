@@ -136,8 +136,26 @@ def export_excel():
                                 sheet.cell(row=1, column=col_num, value=day_month).border=boder
                                 sheet.cell(row=1, column=col_num, value=day_month).alignment =alignment_center
                                 
-                                sheet.cell(row=row_num, column=col_num, value=f"").border=boder
-                                sheet.cell(row=row_num, column=col_num).alignment =alignment_center
+                                # Try to read the value from the origin Excel file if it exists
+                                current_date = datetime.now()
+                                current_month_name = current_date.strftime('%B')
+                                
+                                origin_filename = f"staff_attendance{currect_year}({current_month_name}).xlsx"
+                                origin_value = ""
+                                try:
+                                    origin_wb = openpyxl.load_workbook(origin_filename)
+                                    origin_sheet = origin_wb.active
+                                    origin_cell = origin_sheet.cell(row=row_num, column=col_num)
+                                    if origin_cell.value not in (None, ""):
+                                        origin_value = origin_cell.value
+                                except FileNotFoundError:
+                                    # File not found, skip reading origin value
+                                    origin_value = ""
+                                except Exception:
+                                    pass  # Other errors, just leave blank
+
+                                sheet.cell(row=row_num, column=col_num, value=origin_value).border = boder
+                                sheet.cell(row=row_num, column=col_num).alignment = alignment_center
                                 col_num += 1
 
             sheet.cell(row=1, column=col_num, value="Total lateness (mins)").border=boder

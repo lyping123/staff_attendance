@@ -1,6 +1,7 @@
 import openpyxl , sqlite3,calendar,math
 from datetime import datetime, date
 from excel_style import border_alignCenter,BoldFont
+from attendance_sycn import sycn_attendance
 
 mydb = sqlite3.connect('attendance.db')
 
@@ -110,3 +111,4 @@ def export_yearly(cursor):
         print(f"Error occurred: {e}")
 
 export_yearly(cursor)
+sycn_attendance()
