@@ -176,7 +176,7 @@ def export_excel():
 def export_daily():
     try:
         workbook = openpyxl.Workbook()
-        query="SELECT * FROM staff_list order by staff_name"
+        query="SELECT * FROM staff_list order by staff_name ASC"
         cursor.execute(query)
         staffs=cursor.fetchall()
         sheet=workbook.active

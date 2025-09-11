@@ -158,7 +158,7 @@ class clockApp:
                 
         else:
             messagebox.showinfo("fail","Your user account is not been register yet")
-        
+        export_excel()
         export_daily()
         self.countstaff()
         self.load_attendance()
@@ -167,8 +167,8 @@ class clockApp:
         for row in self.tree.get_children():
             self.tree.delete(row)
         current_date=datetime.now().date()
-        # qry=f"select sa.staff_id,sl.staff_name,sa.time_checkin,sa.time_section,sa.date_checkin from staff_attendance sa INNER JOIN staff_list sl on sl.staff_id=sa.staff_id WHERE date_checkin='{current_date}' order by sa.id desc"
-        qry=f"select sa.staff_id,sl.staff_name,sa.time_checkin,sa.time_section,sa.date_checkin from staff_attendance sa INNER JOIN staff_list sl on sl.staff_id=sa.staff_id  order by sa.id desc"
+        qry=f"select sa.staff_id,sl.staff_name,sa.time_checkin,sa.time_section,sa.date_checkin from staff_attendance sa INNER JOIN staff_list sl on sl.staff_id=sa.staff_id WHERE date_checkin='{current_date}' order by sa.id desc"
+        # qry=f"select sa.staff_id,sl.staff_name,sa.time_checkin,sa.time_section,sa.date_checkin from staff_attendance sa INNER JOIN staff_list sl on sl.staff_id=sa.staff_id  order by sa.id desc"
         cursor.execute(qry)
         rows=cursor.fetchall()
         count=0
