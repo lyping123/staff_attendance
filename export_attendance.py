@@ -45,7 +45,7 @@ def export_excel():
                 
                 for day in week:
                    
-                    if day.month==currect_month  and day.day<=date.today().day:
+                    if day.month==currect_month:
                         if day.weekday() in [5, 6]: 
                             pass
                         else:
@@ -224,3 +224,5 @@ def export_daily():
         
 export_excel()
 export_daily()
+
+

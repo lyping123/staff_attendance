@@ -4,6 +4,7 @@ from tkinter import ttk,messagebox,filedialog
 from datetime import datetime,timedelta,date
 import time
 import winsound
+import requests
 
 from export_attendance import export_excel,export_daily
 
@@ -26,6 +27,9 @@ def adapt_date(date_obj):
 
 
 sqlite3.register_adapter(date, adapt_date)
+
+url="http://api.synergycollege2u.com/api/v1"
+
 
 class clockApp:
     def __init__(self,master):
@@ -77,11 +81,12 @@ class clockApp:
         
     def countstaff(self):
         current_date = datetime.now().date()
-        qry=f"SELECT * FROM staff_attendance where DATE(date_checkin)=DATE('{current_date}')  group by staff_id"
-        cursor.execute(qry)
-        row=cursor.fetchall()
-        count=len(row) if row is not None else 0
-        self.count.config(text=f"Staff attended today:{count}",fg="blue")
+        
+        request=requests.get(f"{url}/attendance/{current_date}/count")
+        if request.status_code==200:
+            data=request.json()
+            count_api=data.get('data') if data is not None else 0
+            self.count.config(text=f"Staff attended today:{count_api}",fg="blue")
     
     def update_clock(self):
         current_time = time.strftime('%H:%M:%S')
@@ -120,46 +125,68 @@ class clockApp:
         #     time_section="afternoon"
         
         
-        qry_staff="SELECT * FROM staff_list where staff_id=?"
-        cursor.execute(qry_staff,(staff_id,))
-        row_staff=cursor.fetchone()
+        staffapi_status=requests.get(f"{url}/staff/{staff_id}")
+        if staffapi_status.status_code==200:
+            staff_data=staffapi_status.json()
+            if staff_data is not None:
+                row_staff=staff_data.get('data')
+            else:
+                messagebox.showinfo("fail","Your user account is not been register yet")
+                self.entry.delete(0, tk.END)
+                return
         
         current_time=time.strftime('%H:%M:%S')
         
         if row_staff is not None:
-            select="SELECT MAX(time_checkin) FROM staff_attendance where staff_id=? AND date_checkin=?"
-            cursor.execute(select,(staff_id,current_date))
-            row=cursor.fetchone()
-            if row[0] is not None:
-                time_checkin_str=row[0]
+            response = requests.get(f"{url}/attendance/last_checkin/{staff_id}/{current_date}")
+            if response.status_code == 200:
+                row = response.json().get("data")
+            else:
+                row = None
+            
+            if row is not None:
+                time_checkin_str=row.get('time_checkin')
                 time_checkin=datetime.strptime(time_checkin_str, '%H:%M:%S')
                 time_checkin_afterfive=time_checkin+timedelta(minutes=5)
                 timenow=datetime.now().time()
                 
                 if timenow>time_checkin_afterfive.time():
-                    query="INSERT INTO `staff_attendance`(`staff_id`,`time_checkin`,`time_section`,`date_checkin`) values(?,?,?,?)"
-                    cursor.execute(query,(staff_id,current_time,time_section,current_date,))
-                    mydb.commit()
-                    self.messagelabel("success")
-                    winsound.PlaySound("audio/success.wav", winsound.SND_FILENAME)
-                    self.entry.delete(0, tk.END)
-                    
+                    payload = {
+                        "staff_id": staff_id,
+                        "time_checkin": current_time,
+                        "time_section": time_section,
+                        "date_checkin": str(current_date)
+                    }
+                    api_response = requests.post(f"{url}/attendance/add", json=payload)
+                    if api_response.status_code == 200:
+                        self.messagelabel("success")
+                        winsound.PlaySound("audio/success.wav", winsound.SND_FILENAME)
+                        self.entry.delete(0, tk.END)
+                    else:
+                        self.messagelabel("network error please try again")
+                        winsound.PlaySound("audio/fail.wav", winsound.SND_FILENAME)
+                        self.entry.delete(0, tk.END)
                 else:
                     self.messagelabel("fail")
                     winsound.PlaySound("audio/fail.wav", winsound.SND_FILENAME)
                     self.entry.delete(0, tk.END)
             else:
-                query="INSERT INTO `staff_attendance`(`staff_id`,`time_checkin`,`time_section`,`date_checkin`) values(?,?,?,?)"
-                cursor.execute(query,(staff_id,current_time,time_section,current_date,))
-                mydb.commit()
-                self.messagelabel("success")
-                winsound.PlaySound("audio/success.wav", winsound.SND_FILENAME)
-                self.entry.delete(0, tk.END) 
+                payload = {
+                    "staff_id": staff_id,
+                    "time_checkin": current_time,
+                    "time_section": time_section,
+                    "date_checkin": str(current_date)
+                }
+                api_response = requests.post(f"{url}/attendance/add", json=payload)
+                if api_response.status_code == 200:
+                    self.messagelabel("success")
+                    winsound.PlaySound("audio/success.wav", winsound.SND_FILENAME)
                 
         else:
             messagebox.showinfo("fail","Your user account is not been register yet")
-        export_excel()
-        export_daily()
+            self.entry.delete(0, tk.END)
+            
+        
         self.countstaff()
         self.load_attendance()
         
@@ -167,14 +194,18 @@ class clockApp:
         for row in self.tree.get_children():
             self.tree.delete(row)
         current_date=datetime.now().date()
-        qry=f"select sa.staff_id,sl.staff_name,sa.time_checkin,sa.time_section,sa.date_checkin from staff_attendance sa INNER JOIN staff_list sl on sl.staff_id=sa.staff_id WHERE date_checkin='{current_date}' order by sa.id desc"
-        # qry=f"select sa.staff_id,sl.staff_name,sa.time_checkin,sa.time_section,sa.date_checkin from staff_attendance sa INNER JOIN staff_list sl on sl.staff_id=sa.staff_id  order by sa.id desc"
-        cursor.execute(qry)
-        rows=cursor.fetchall()
-        count=0
-        for row in rows:
-            count+=1
-            self.tree.insert("",tk.END,values=(count,row[0],row[1],row[2],row[3],row[4]))
+        # Fetch attendance data from API instead of local DB
+        
+        response = requests.get(f"{url}/attendance/{current_date}/all")
+        if response.status_code == 200:
+            data = response.json()
+            rows = data.get("data", [])
+            count = 0
+            for row in rows:
+                count+=1 
+                self.tree.insert("", tk.END, values=(count, row.get('staff_id'), row.get('staff_name'), row.get('time_checkin'), row.get('time_section'), row.get('date_checkin')))
+        else:
+            self.tree.insert("", tk.END, values=("", "Failed to load data from API", "", "", "", ""))
     
     
 

@@ -111,4 +111,5 @@ def export_yearly(cursor):
         print(f"Error occurred: {e}")
 
 export_yearly(cursor)
+
 sycn_attendance()
